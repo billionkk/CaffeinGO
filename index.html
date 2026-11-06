@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CaffeinGO — 내 몸의 카페인 농도</title>
+<style>
+:root{
+  --bg:#14110d; --card:#1e1913; --card2:#262019;
+  --text:#f4ede1; --muted:#ab9d89;
+  --amber:#f2a93b; --amber-d:#c97f1e;
+  --green:#82c975; --blue:#7aa8f0; --red:#f07a7a;
+  --line:#3a2f22;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;
+  line-height:1.55;padding-bottom:56px}
+.wrap{max-width:860px;margin:0 auto;padding:0 18px}
+header.hero{padding:34px 0 6px}
+header.hero h1{font-size:30px;letter-spacing:-.5px}
+header.hero h1 .go{color:var(--amber)}
+header.hero p{color:var(--muted);font-size:14px;margin-top:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;
+  padding:20px;margin-top:14px}
+.card h2{font-size:16px;margin-bottom:4px}
+.card .desc{font-size:13px;color:var(--muted);margin-bottom:12px}
+details.card summary{cursor:pointer;font-size:16px;font-weight:700;list-style:none}
+details.card summary::-webkit-details-marker{display:none}
+details.card summary .sub{display:block;font-size:12.5px;color:var(--muted);font-weight:400;margin-top:4px}
+details.card summary::after{content:"＋";float:right;color:var(--muted)}
+details.card[open] summary::after{content:"－"}
+
+/* 상태 히어로 */
+.verdict{border-left:5px solid var(--muted)}
+.verdict.good{border-left-color:var(--green)}
+.verdict.wait{border-left-color:var(--amber)}
+.verdict.bad{border-left-color:var(--red)}
+.verdict .v-k{font-size:12.5px;color:var(--muted)}
+.verdict .v-t{font-size:26px;font-weight:800;letter-spacing:-.5px;margin:4px 0 6px}
+.verdict.good .v-t{color:var(--green)}
+.verdict.wait .v-t{color:var(--amber)}
+.verdict.bad .v-t{color:var(--red)}
+.verdict .v-s{font-size:14px;color:var(--muted)}
+.s-row{display:flex;gap:12px;margin:10px 0 4px}
+.s-row>div{flex:1;background:var(--card2);border-radius:12px;padding:10px 8px;text-align:center}
+.s-row .lbl{font-size:12px;color:var(--muted);margin:0 0 4px}
+.s-row .big{font-size:20px;font-weight:800;margin:0}
+.s-v{font-size:20px;font-weight:800;margin:0}
+.s-v.good{color:var(--green)}.s-v.wait{color:var(--amber)}.s-v.bad{color:var(--red)}
+.meter{position:relative;height:12px;background:var(--card2);border-radius:999px;margin-top:14px;overflow:visible}
+.meter-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--amber-d),var(--amber));
+  transition:width .4s;max-width:100%}
+.meter-th{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--red)}
+.meter-labels{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);margin-top:6px}
+
+/* 타임라인 */
+.tl{position:relative;height:58px;background:var(--card2);border-radius:12px;margin-top:6px;overflow:hidden}
+.tl .sleep{position:absolute;top:0;bottom:0;background:rgba(122,168,240,.13)}
+.tl .mk{position:absolute;top:8px;bottom:8px;width:3px;border-radius:2px;transform:translateX(-50%)}
+.tl .mk.m-wake,.tl .mk.m-bed{background:var(--blue)}
+.tl .mk.m-best{background:var(--green)}
+.tl .mk.m-cut{background:var(--amber)}
+.tl .now{position:absolute;top:0;bottom:0;width:2px;background:#fff;transform:translateX(-50%)}
+.tl .now::after{content:"";position:absolute;top:-1px;left:50%;transform:translateX(-50%);
+  width:9px;height:9px;border-radius:50%;background:#fff}
+.tl .dose{position:absolute;top:50%;width:11px;height:11px;border-radius:50%;
+  background:var(--amber);border:2px solid #14110d;transform:translate(-50%,-50%)}
+.tl-scale{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:6px}
+.tl-times{font-size:13.5px;margin-top:10px;line-height:2}
+.tl-times .t-wake,.tl-times .t-bed{color:var(--blue);font-weight:700}
+.tl-times .t-best{color:var(--green);font-weight:700}
+.tl-times .t-cut{color:var(--amber);font-weight:700}
+
+/* 빠른 기록 */
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px}
+.chip{background:var(--card2);border:1px solid var(--line);color:var(--text);
+  border-radius:999px;padding:11px 16px;font-size:14px;cursor:pointer}
+.chip small{color:var(--muted);font-size:12px;margin-left:4px}
+.chip:active{background:var(--amber);border-color:var(--amber);color:#1a1208}
+.chip:active small{color:#1a1208}
+.chip.more{border-style:dashed;color:var(--muted)}
+.custom{display:flex;gap:8px;margin-top:10px}
+.custom[hidden]{display:none}
+.custom input{background:var(--card2);border:1px solid var(--line);color:var(--text);
+  border-radius:10px;padding:10px 12px;font-size:15px;flex:1;min-width:0}
+.custom button{background:var(--amber);color:#1a1208;border:none;border-radius:10px;
+  padding:10px 18px;font-size:15px;font-weight:700;cursor:pointer}
+.doses{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+.dose{display:flex;align-items:center;gap:10px;background:var(--card2);
+  border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:14px}
+.dose input.t{font-weight:700;color:var(--amber);min-width:60px;background:transparent;
+  border:1px solid transparent;border-radius:8px;padding:2px 4px;font-size:14px;font-family:inherit}
+.dose input.t:hover{border-color:var(--line)}
+.dose input.t:focus{border-color:var(--amber);outline:none;background:var(--card)}
+.dose .m{color:var(--muted);font-size:13px}
+.dose button{margin-left:auto;background:none;border:none;color:var(--muted);
+  font-size:18px;cursor:pointer;padding:2px 8px}
+.dose button:hover{color:var(--red)}
+
+/* 그래프 */
+#graph{width:100%;height:280px;display:block;touch-action:none}
+.gwrap{position:relative}
+.gpan{display:flex;gap:8px;justify-content:center;margin:10px 0 2px}
+.gpan button{background:var(--card2);border:1px solid var(--line);color:var(--text);
+  border-radius:10px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+.gpan button:active{transform:scale(.96)}
+#tip{position:absolute;pointer-events:none;background:#0d0b09;border:1px solid var(--line);
+  border-radius:10px;padding:8px 10px;font-size:12px;display:none;white-space:nowrap;z-index:5}
+#tip b{color:var(--amber)}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--muted);margin-top:10px}
+.legend i{display:inline-block;width:22px;height:3px;border-radius:2px;vertical-align:middle;margin-right:5px}
+
+/* 내 몸 정보 */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.field label{font-size:13px;color:var(--muted)}
+.field input,.field select{background:var(--card2);border:1px solid var(--line);
+  color:var(--text);border-radius:10px;padding:10px 12px;font-size:15px;width:100%}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+@media(max-width:560px){.row3{grid-template-columns:1fr 1fr}}
+.seg{display:flex;gap:8px}
+.seg button{flex:1;background:var(--card2);border:1px solid var(--line);color:var(--muted);
+  border-radius:10px;padding:10px;font-size:15px;cursor:pointer}
+.seg button.on{background:var(--amber);border-color:var(--amber);color:#1a1208;font-weight:700}
+.derived{font-size:12.5px;color:var(--muted);margin-top:4px}
+.derived b{color:var(--amber)}
+
+.model{font-size:13.5px;color:var(--muted)}
+.model li{margin:7px 0 7px 18px}
+.model b{color:var(--text);font-weight:600}
+.note{font-size:12.5px;color:var(--muted);background:var(--card2);border:1px dashed var(--line);
+  border-radius:10px;padding:10px 12px;margin-top:12px}
+.evi{list-style:none}
+.evi li{margin:12px 0;font-size:14px}
+.evi b{color:var(--amber)}
+.evi .src{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+table.diff{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+table.diff th,table.diff td{border:1px solid var(--line);padding:9px 10px;text-align:left;vertical-align:top}
+table.diff th:first-child,table.diff td:first-child{width:72px;color:var(--muted);font-size:12.5px}
+table.diff th{background:var(--card2);font-size:12.5px;color:var(--muted)}
+table.diff th.me{background:var(--amber);color:#1a1208}
+table.diff td.me{font-weight:700;color:var(--amber)}
+footer{margin-top:28px;text-align:center;color:var(--muted);font-size:12.5px}
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);
+  background:#0d0b09;border:1px solid var(--amber-d);color:var(--text);
+  border-radius:999px;padding:11px 22px;font-size:14px;opacity:0;pointer-events:none;
+  transition:all .25s;z-index:50;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>Caffein<span class="go">GO</span></h1>
+  <p>마신 커피를 입력하면, 잘 시간과 일어날 시간을 알려줘요</p>
+</header>
+
+<section class="card verdict" id="verdictCard">
+  <div class="v-k">지금 내 카페인 상태</div>
+  <div class="v-t" id="vTitle">–</div>
+  <div class="v-s" id="vSub"></div>
+  <div class="meter">
+    <div class="meter-fill" id="meterFill" style="width:0%"></div>
+    <div class="meter-th" id="meterTh"></div>
+  </div>
+  <div class="meter-labels"><span>0</span><span>효과 종료 기준 1.0mg/L</span><span id="meterMax"></span></div>
+</section>
+
+<section class="card" id="planCard">
+  <h2>🌙 최적 수면 플랜</h2>
+  <p class="desc">마신 카페인을 기준으로, 방해받지 않고 잘 수 있는 시간을 계산해요.</p>
+  <div class="s-row">
+    <div><p class="lbl">최적 취침시간</p><p class="big" id="planBed">–</p></div>
+    <div><p class="lbl">권장 수면시간</p><p class="big">7시간 30분</p></div>
+    <div><p class="lbl">기상시간</p><p class="big" id="planWake">–</p></div>
+  </div>
+  <p class="desc" id="planSub"></p>
+</section>
+
+<section class="card" id="sleepCard">
+  <h2>😴 취침 시 예상</h2>
+  <p class="desc">취침 시간의 카페인 농도로 수면을 예상해요.</p>
+  <div class="s-row">
+    <div><p class="lbl">취침 시간</p><p class="big" id="sleepTime">–</p></div>
+    <div><p class="lbl">취침 시 농도</p><p class="big" id="sleepConc">–</p></div>
+    <div><p class="lbl">수면 판정</p><p class="s-v" id="sleepVerdict">–</p></div>
+  </div>
+  <p class="desc" id="sleepSub"></p>
+</section>
+
+<section class="card">
+  <h2>오늘의 타임라인</h2>
+  <p class="desc">기상부터 취침까지, 커피와 관련된 오늘의 시각들입니다.</p>
+  <div class="tl" id="timeline"></div>
+  <div class="tl-scale"><span>0시</span><span>6시</span><span>12시</span><span>18시</span><span>24시</span></div>
+  <div class="tl-times" id="tlTimes"></div>
+</section>
+
+<section class="card">
+  <h2>방금 커피 마셨어요?</h2>
+  <p class="desc">마신 커피를 누르면 지금 시각으로 바로 기록됩니다.</p>
+  <div class="chips" id="chips"></div>
+  <div class="custom" id="customRow" hidden>
+    <input type="time" id="cTime" aria-label="마신 시간">
+    <input type="number" id="cMg" placeholder="카페인 mg (예: 150)" min="1" max="1000" aria-label="카페인 함량">
+    <button id="cAdd">추가</button>
+  </div>
+  <div class="doses" id="doseList"></div>
+</section>
+
+<section class="card">
+  <h2>상세 농도 곡선</h2>
+  <p class="desc">좌우로 밀어서 이전·다음 시간대를 볼 수 있어요. 점을 터치하면 시각별 농도가 나와요.</p>
+  <div class="gwrap">
+    <canvas id="graph"></canvas>
+    <div id="tip"></div>
+  </div>
+  <div class="gpan">
+    <button id="panL">◀ 6시간</button>
+    <button id="panToday" hidden>오늘로</button>
+    <button id="panR">6시간 ▶</button>
+  </div>
+  <div class="legend">
+    <span><i style="background:#f2a93b"></i>혈중 농도</span>
+    <span><i style="background:#f07a7a"></i>효과 종료 기준 1.0mg/L</span>
+    <span><i style="background:#82c975"></i>최적 시각</span>
+    <span><i style="background:#f2a93b;opacity:.5"></i>마감 시각</span>
+    <span><i style="background:#7aa8f0"></i>수면 시간대</span>
+    <span><i style="background:#7aa8f0"></i>최적 취침 (곡선과 기준선의 접점)</span>
+  </div>
+</section>
+
+<section class="card" id="compareCard">
+  <h2>⚖️ 내 몸 기준, 얼마나 다를까요?</h2>
+  <p class="desc">같은 커피 한 잔도 몸마다 다르게 남아요. 아메리카노 1잔(150mg)을 16:00에 마셨다고 가정했을 때, 취침 시간의 농도를 비교해요.</p>
+  <div class="s-row">
+    <div><p class="lbl">내 몸</p><p class="big" id="cmpMine">–</p></div>
+    <div><p class="lbl">평균 성인</p><p class="big" id="cmpAvg">–</p></div>
+  </div>
+  <p class="desc" id="cmpSub"></p>
+</section>
+
+<section class="card">
+  <h2>⚠️ 카페인, 왜 조심해야 할까요?</h2>
+  <p class="desc">카페인은 잠들기 전 6시간 전에 마셔도 수면을 방해한다는 연구 결과가 있어요.</p>
+  <ul class="evi">
+    <li><b>취침 6시간 전 커피도 수면을 40분 넘게 줄입니다.</b> 400mg을 취침 6시간 전에 마신 참가자는 객관적 측정에서 수면 시간이 줄고 깊은 잠이 감소했어요. 그런데 본인은 “잘 잤다”고 느꼈습니다.<span class="src">Drake 외, 2013, Journal of Clinical Sleep Medicine</span></li>
+    <li><b>평균 수면 단축 45분.</b> 24개 연구를 합친 메타분석에서 카페인은 총 수면 시간을 평균 45분 줄였고, 커피 1잔(약 107mg)은 취침 8.8시간 전에 마셔야 수면 단축이 없었습니다.<span class="src">Gardiner 외, 2023, Sleep Medicine Reviews</span></li>
+    <li><b>하루 400mg이 기준입니다.</b> 미국 FDA와 유럽 EFSA는 건강한 성인 기준 하루 400mg까지를 제시합니다. 이를 넘기면 불안·두근거림·수면 방해가 흔해져요.<span class="src">FDA “Spilling the Beans” · EFSA, 2015</span></li>
+    <li><b>같은 커피, 몸마다 다릅니다.</b> 카페인 반감기는 평균 5시간이지만 사람마다 3~7시간으로 달라요. 간 효소 CYP1A2 유전자 때문에 인구의 절반 가까이는 느린 대사자입니다.<span class="src">Cornelis 외, 2011, PLOS Genetics</span></li>
+  </ul>
+  <p class="note">이 내용은 일반 정보예요. 카페인에 민감하거나 질환·복용약이 있다면 의사와 상의하세요.</p>
+</section>
+
+<section class="card">
+  <h2>🆚 다른 계산기와 뭐가 달라요?</h2>
+  <p class="desc">카페인 계산기와 수면 계산기는 따로따로 있어요. CaffeinGO는 두 가지를 하나로 합쳤습니다.</p>
+  <table class="diff">
+    <tr><th></th><th>일반 카페인 계산기</th><th>수면 계산기</th><th class="me">CaffeinGO</th></tr>
+    <tr><td>알려주는 것</td><td>취침 시 남은 카페인 양</td><td>90분 주기 기준 기상 시간</td><td class="me">취침·기상·총 수면시간 플랜</td></tr>
+    <tr><td>개인화</td><td>반감기 5시간 고정 (직접 입력)</td><td>없음</td><td class="me">몸 기준 계산 (Watson 체수분량 + 대사 속도)</td></tr>
+    <tr><td>카페인 + 수면</td><td>수면 계획 없음</td><td>카페인 반영 안 함</td><td class="me">카페인 곡선과 수면 주기를 하나로 연결</td></tr>
+  </table>
+</section>
+
+<details class="card" id="profileDetails">
+  <summary>내 몸 정보<span class="sub" id="profileSummary"></span></summary>
+  <div style="margin-top:14px">
+    <div class="row3">
+      <div class="field"><label>키 (cm)</label><input id="inH" type="number" min="100" max="230" step="1"></div>
+      <div class="field"><label>몸무게 (kg)</label><input id="inW" type="number" min="25" max="200" step="0.5"></div>
+      <div class="field"><label>나이 (세)</label><input id="inAge" type="number" min="10" max="100" step="1"></div>
+    </div>
+    <div class="row3">
+      <div class="field"><label>성별</label>
+        <div class="seg" id="sexSeg"><button data-sex="m">남</button><button data-sex="f">여</button></div>
+      </div>
+      <div class="field"><label>기상 시간</label><input id="inWake" type="time"></div>
+      <div class="field"><label>취침 시간</label><input id="inBed" type="time"></div>
+    </div>
+    <div class="field"><label>카페인 대사 속도</label>
+      <div class="seg" id="metaSeg"><button data-meta="fast">빠름</button><button data-meta="normal">보통</button><button data-meta="slow">느림</button></div>
+      <p class="derived">빠름 반감기 3.5시간 · 보통 5시간 · 느림 7시간. 오후 커피를 마시고도 잘 잔다면 빠름, 조금만 마셔도 밤에 뒤척인다면 느림일 가능성이 커요. (CYP1A2 유전자 등에 따라 달라집니다)</p>
+    </div>
+    <p class="derived" id="derivedLine"></p>
+  </div>
+</details>
+
+<details class="card">
+  <summary>계산 방법<span class="sub">이 앱의 수치가 어떻게 나오는지 궁금하다면</span></summary>
+  <ul class="model" style="margin-top:14px">
+    <li><b>분포용적</b> — Watson 공식으로 체수분량을 구해 카페인이 퍼지는 몸의 부피로 씁니다. 키·몸무게·성별·나이가 모두 반영됩니다.</li>
+    <li><b>흡수</b> — 마신 뒤 45분 동안 농도가 선형으로 올라가 최고점에 닿는다고 가정합니다.</li>
+    <li><b>감소</b> — 이후에는 반감기로 지수 감쇠합니다. 대사 속도에 따라 3.5시간(빠름)·5시간(보통, 60세 이상 6시간)·7시간(느림)을 씁니다. 반감기가 사람마다 3~7시간으로 다르다는 연구 근거가 있어요.</li>
+    <li><b>효과 종료 기준</b> — 혈중 농도 1.0mg/L 아래로 떨어지면 효과가 끝난 것으로 봅니다. 이 수치는 연구에서 직접 제시한 값이 아니라, 취침 시점 잔류 카페인량이 수면과 관련된다는 연구(Drake 2013, Gardiner 2023)에 근거해 정한 이 앱의 실용적 기준입니다.</li>
+    <li><b>최적 시각</b> — 기상 후 90분. 기상 직후 30~45분에 코르티솔이 정점을 찍는 각성 반응이 있어, 그 시기에 카페인을 겹치면 자극이 중첩됩니다 (Clow 외, 2004). 90분 뒤면 코르티솔이 내려가기 시작해요. 다만 습관적 음용자는 내성이 생긴다는 연구도 있어, 권장 기준입니다.</li>
+    <li><b>마감 시각</b> — 아메리카노 1잔(150mg)을 기준으로, 취침 시점 농도가 1.0mg/L 아래가 되는 가장 늦은 시각을 역산합니다.</li>
+    <li><b>최적 수면 플랜</b> — 마신 카페인을 기준으로 농도가 1.0mg/L 아래로 떨어지는 가장 이른 시각을 최적 취침시간으로, 거기에 권장 수면시간 7시간 30분(수면 주기 90분×5번)을 더한 시각을 기상시간으로 제시합니다. 한 수면 주기는 약 90분으로 얕은 잠→깊은 잠→REM이 이어지고, 깊은 잠은 전반부, REM은 후반부에 몰려 있어요 (미국 국립심폐혈액연구소, NHLBI).</li>
+  </ul>
+  <p class="note"><b style="color:var(--text)">출처</b><br>
+Drake 외, 2013, Journal of Clinical Sleep Medicine · Gardiner 외, 2023, Sleep Medicine Reviews · FDA “Spilling the Beans” · EFSA, 2015 · Clow 외, 2004, Neuroscience &amp; Biobehavioral Reviews · Watson 외, 1980, American Journal of Clinical Nutrition · Cornelis 외, 2011, PLOS Genetics · NHLBI, 수면 단계 안내</p>
+  <p class="note">단순화한 모델이라 실제 몸과 다를 수 있습니다. 카페인에 민감하거나 질환·복용약이 있다면 의사와 상의하세요. 이 앱은 의료 조언이 아닙니다.</p>
+</details>
+
+<footer>팀 세송이 · CaffeinGo v1.0.0</footer>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+"use strict";
+/* ---------- 상태 ---------- */
+const LS_KEY = "caffeingo_v1";
+const PRESETS = [
+  {label:"아메리카노", mg:150},
+  {label:"카페라떼", mg:150},
+  {label:"콜드브루", mg:200},
+  {label:"에스프레소", mg:75},
+  {label:"캔커피", mg:100},
+  {label:"에너지드링크", mg:150},
+  {label:"녹차", mg:40},
+];
+const THRESH = 1.0, ABS_MIN = 45, STD_DOSE = 150;
+
+let state = load() || {
+  profile:{height:175, weight:70, sex:"m", age:25, wake:"07:00", bed:"23:00", metabolism:"normal"},
+  doses:[{time:"08:30", mg:150, label:"아메리카노"}],
+};
+if (!state.profile.metabolism) state.profile.metabolism = "normal";
+function load(){ try{ const s = JSON.parse(localStorage.getItem(LS_KEY)); return s && s.profile ? s : null; }catch(e){ return null; } }
+function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){} }
+
+/* ---------- 시간 유틸 ---------- */
+const toMin = s => { const [h,m] = s.split(":").map(Number); return h*60+m; };
+const fmt = mins => { mins = ((Math.round(mins)%1440)+1440)%1440;
+  return String(Math.floor(mins/60)).padStart(2,"0")+":"+String(mins%60).padStart(2,"0"); };
+const fmtDay = mins => { const day = Math.floor(mins/1440);
+  return (day > 0 ? `+${day}일 ` : "") + fmt(mins); };
+const dur = mins => { mins = Math.max(0, Math.round(mins));
+  const h = Math.floor(mins/60), m = mins%60;
+  return h > 0 ? `${h}시간 ${m}분` : `${m}분`; };
+
+/* ---------- 카페인 모델 ---------- */
+function tbw(p){
+  return p.sex === "m"
+    ? 2.447 - 0.09156*p.age + 0.1074*p.height + 0.3362*p.weight
+    : -2.097 + 0.1069*p.height + 0.2466*p.weight;
+}
+const halfLife = p => {
+  const m = p.metabolism || "normal";
+  if (m === "fast") return 3.5;
+  if (m === "slow") return 7;
+  return p.age >= 60 ? 6 : 5;
+};
+function modelParams(){
+  const p = state.profile;
+  return {Vd: tbw(p), k: Math.LN2 / halfLife(p)};
+}
+function doseConc(mg, tMin, Vd, k){
+  if (tMin < 0) return 0;
+  const c0 = mg / Vd;
+  if (tMin < ABS_MIN) return c0 * (tMin / ABS_MIN);
+  return c0 * Math.exp(-k * (tMin - ABS_MIN) / 60);
+}
+function totalConcAt(tMin, Vd, k){
+  return state.doses.reduce((s,d) => s + doseConc(d.mg, tMin - toMin(d.time), Vd, k), 0);
+}
+function totalConcAbs(tMin){
+  const {Vd, k} = modelParams();
+  return totalConcAt(tMin, Vd, k);
+}
+const nowMin = () => { const d = new Date(); return d.getHours()*60 + d.getMinutes(); };
+const bestTime = () => toMin(state.profile.wake) + 90;
+function cutoffTime(){
+  const p = state.profile, {Vd, k} = modelParams();
+  const bed = toMin(p.bed);
+  const budget = THRESH - totalConcAbs(bed);
+  if (budget <= 0) return null;
+  const latest = Math.min(bed - ABS_MIN, bed - ABS_MIN - 60*Math.log((STD_DOSE/Vd)/budget)/k);
+  return latest < 0 ? null : latest;
+}
+function effectEnd(){
+  if (!state.doses.length) return null;
+  const last = Math.max(...state.doses.map(d => toMin(d.time)));
+  let above = false;
+  for (let t = last + 5; t <= last + 48*60; t += 5){
+    const c = totalConcAbs(t);
+    if (c >= THRESH) above = true;
+    else if (above) return t;
+  }
+  return null;
+}
+
+/* 최적 수면 플랜 — 농도가 기준 아래로 떨어지는 가장 이른 시각 = 취침시간,
+   거기에 권장 수면시간 7시간 30분(수면 주기 5번)을 더한 시각 = 기상시간 */
+const SLEEP_MIN = 450;
+function planBedtime(){
+  const now = nowMin();
+  if (!state.doses.length || totalConcAbs(now) < THRESH) return now;
+  for (let t = now + 5; t <= now + 48*60; t += 5){
+    if (totalConcAbs(t) < THRESH) return t;
+  }
+  return null;
+}
+function renderPlan(){
+  const bed = planBedtime();
+  if (bed === null){
+    $("planBed").textContent = "–";
+    $("planWake").textContent = "–";
+    $("planSub").textContent = "카페인 농도가 48시간 내로 기준 아래로 떨어지지 않아요. 늦은 시간에 많은 양을 마셨다면 내일 오전까지 영향을 받을 수 있어요.";
+    return;
+  }
+  const wake = bed + SLEEP_MIN, now = nowMin();
+  $("planBed").textContent = fmtDay(bed);
+  $("planWake").textContent = fmtDay(wake);
+  if (!state.doses.length){
+    $("planSub").textContent = "오늘 마신 카페인이 없어요. 원할 때 주무세요.";
+  } else if (bed <= now){
+    $("planSub").textContent = "지금 농도가 이미 기준 아래예요. 지금 자도 카페인이 수면을 방해하지 않아요.";
+  } else {
+    $("planSub").textContent = `이 시각부터 카페인이 수면을 방해하지 않아요. ${fmtDay(bed)}에 자면 ${fmtDay(wake)}에 일어나는 게 좋아요.`;
+  }
+}
+
+/* ---------- 화면 ---------- */
+const $ = id => document.getElementById(id);
+let toastTimer;
+function toast(msg){
+  const t = $("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 1600);
+}
+
+function render(){
+  save();
+  renderVerdict();
+  renderPlan();
+  renderSleep();
+  renderCompare();
+  renderTimeline();
+  renderDoses();
+  renderProfile();
+  drawGraph();
+}
+
+/* 1. 상태 히어로 — 한눈에 "지금 어떻게 해야 하는지" */
+function renderVerdict(){
+  const card = $("verdictCard"), now = nowMin(), c = totalConcAbs(now);
+  const best = bestTime(), cut = cutoffTime();
+  let cls, title, sub;
+  if (!state.doses.length){
+    cls = ""; title = "오늘 마신 커피를 기록해 보세요";
+    sub = "아래에서 방금 마신 커피를 누르면 지금 시각으로 바로 기록돼요.";
+  } else if (cut === null || now > cut){
+    cls = "bad"; title = "오늘 마감 시각이 지났어요";
+    sub = `현재 ${c.toFixed(1)}mg/L · 다음 커피는 내일 최적 시각(${fmt(best)})에 마셔보세요.`;
+  } else if (now < best){
+    cls = "wait"; title = `최적 시각까지 ${dur(best - now)} 남았어요`;
+    sub = `${fmt(best)}에 마시면 카페인이 가장 잘 들어요.`;
+  } else {
+    cls = "good"; title = "지금 마셔도 돼요";
+    sub = `현재 ${c.toFixed(1)}mg/L · 마감(${fmt(cut)})까지 ${dur(cut - now)} 남았어요.`;
+  }
+  card.className = "card verdict " + cls;
+  $("vTitle").textContent = title;
+  $("vSub").textContent = sub;
+  // 농도 미터
+  let peak = THRESH * 2;
+  for (let t = 0; t <= 1440; t += 10) peak = Math.max(peak, totalConcAbs(t));
+  const scale = Math.ceil(peak * 1.2 * 2) / 2;
+  $("meterFill").style.width = Math.min(100, c / scale * 100) + "%";
+  $("meterTh").style.left = (THRESH / scale * 100) + "%";
+  $("meterMax").textContent = scale.toFixed(1) + "mg/L";
+}
+
+/* 1-2. 취침 시 예상 — 취침 시각 농도와 수면 판정 */
+function renderSleep(){
+  const bed = state.profile.bed, c = totalConcAbs(toMin(bed));
+  let cls, label, sub;
+  if (c < THRESH){
+    cls = "good"; label = "수면 양호";
+    sub = "취침 시 카페인이 거의 남지 않아요.";
+  } else if (c < THRESH * 2){
+    cls = "wait"; label = "수면 주의";
+    sub = "뒤척일 수 있어요. 다음엔 조금 일찍 마셔보세요.";
+  } else {
+    cls = "bad"; label = "수면 불편";
+    sub = "잠들기 어려울 수 있어요. 내일은 마감 시각을 지켜보세요.";
+  }
+  $("sleepTime").textContent = bed;
+  $("sleepConc").textContent = c.toFixed(1) + "mg/L";
+  const v = $("sleepVerdict");
+  v.textContent = label; v.className = "s-v " + cls;
+  $("sleepSub").textContent = sub;
+}
+
+/* 1-3. 내 몸 기준 비교 — 같은 커피, 몸마다 다르게 남는다 */
+function renderCompare(){
+  const p = state.profile, {Vd, k} = modelParams();
+  const avgVd = tbw({height:175, weight:70, sex:"m", age:25});
+  const avgK = Math.LN2 / 5;
+  let t = toMin(p.bed) - 960; // 16:00에 마신 150mg → 취침 시
+  if (t < 0) t += 1440;
+  const myC = doseConc(150, t, Vd, k);
+  const avgC = doseConc(150, t, avgVd, avgK);
+  $("cmpMine").textContent = myC.toFixed(1) + "mg/L";
+  $("cmpAvg").textContent = avgC.toFixed(1) + "mg/L";
+  const same = Math.abs(myC - avgC) < 0.05;
+  $("cmpSub").textContent = same
+    ? "지금은 평균 성인과 같아요. 내 몸 정보나 대사 속도를 바꾸면 차이가 바로 보여요."
+    : myC > avgC
+    ? "내 몸에서는 같은 커피가 평균보다 오래 남아요. 마감 시각을 더 일찍 잡는 게 좋아요."
+    : "내 몸에서는 같은 커피가 평균보다 빨리 빠져나가요. 마감 시각에 여유가 있어요.";
+}
+
+/* 2. 오늘의 타임라인 */
+function renderTimeline(){
+  const el = $("timeline"); el.innerHTML = "";
+  const p = state.profile, wake = toMin(p.wake), bed = toMin(p.bed);
+  const best = bestTime(), cut = cutoffTime();
+  const pct = t => (Math.max(0, Math.min(1440, t)) / 1440 * 100) + "%";
+  const add = (clsName, extra="") => {
+    const d = document.createElement("div");
+    d.className = clsName; d.style.cssText = extra;
+    el.appendChild(d); return d;
+  };
+  add("sleep", `left:${pct(bed)};right:0`);
+  add("sleep", `left:0;width:${pct(wake)}`);
+  const mk = (t, cls, label) => {
+    const d = add("mk " + cls, `left:${pct(t)}`);
+    d.title = label;
+  };
+  mk(wake, "m-wake", "기상 " + p.wake);
+  mk(best, "m-best", "최적 " + fmt(best));
+  if (cut !== null) mk(cut, "m-cut", "마감 " + fmt(cut));
+  mk(bed, "m-bed", "취침 " + p.bed);
+  state.doses.forEach(d => {
+    const dot = add("dose", `left:${pct(toMin(d.time))}`);
+    dot.title = `${d.time} ${d.label} ${d.mg}mg`;
+  });
+  const n = add("now", `left:${pct(nowMin())}`);
+  n.title = "지금 " + fmt(nowMin());
+
+  const times = [
+    `<span class="t-wake">기상 ${p.wake}</span>`,
+    `<span class="t-best">최적 ${fmt(best)}</span>`,
+    cut !== null ? `<span class="t-cut">마감 ${fmt(cut)}</span>` : `<span class="t-cut">마감 –</span>`,
+    `<span class="t-bed">취침 ${p.bed}</span>`,
+  ];
+  const end = effectEnd();
+  if (end !== null) times.push(`<span>효과 종료 ${fmt(end)}</span>`);
+  $("tlTimes").innerHTML = times.join(" · ");
+}
+
+/* 3. 빠른 기록 */
+function renderChips(){
+  const box = $("chips"); box.innerHTML = "";
+  PRESETS.forEach(pr => {
+    const b = document.createElement("button");
+    b.className = "chip";
+    b.innerHTML = `${pr.label}<small>${pr.mg}mg</small>`;
+    b.onclick = () => {
+      const d = new Date();
+      const t = String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
+      state.doses.push({time:t, mg:pr.mg, label:pr.label});
+      render();
+      toast(`${pr.label} ${pr.mg}mg 기록됐어요`);
+    };
+    box.appendChild(b);
+  });
+  const more = document.createElement("button");
+  more.className = "chip more"; more.textContent = "+ 직접 입력";
+  more.onclick = () => {
+    const row = $("customRow"), hidden = row.hidden;
+    row.hidden = !hidden;
+    if (hidden){
+      const d = new Date();
+      $("cTime").value = String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
+    }
+  };
+  box.appendChild(more);
+}
+
+function renderDoses(){
+  const box = $("doseList"); box.innerHTML = "";
+  const sorted = [...state.doses].sort((a,b) => toMin(a.time) - toMin(b.time));
+  if (!sorted.length){
+    box.innerHTML = '<p class="desc" style="margin:0">아직 기록이 없어요. 위에서 마신 커피를 눌러보세요.</p>';
+    return;
+  }
+  const h = document.createElement("p");
+  h.className = "desc"; h.style.margin = "2px 0 0";
+  h.textContent = `오늘 총 ${state.doses.reduce((s,d)=>s+d.mg,0)}mg 기록됨`;
+  box.appendChild(h);
+  sorted.forEach(d => {
+    const idx = state.doses.indexOf(d);
+    const el = document.createElement("div");
+    el.className = "dose";
+    el.innerHTML = `<span>${d.label}</span><span class="m">${d.mg}mg</span>`;
+    const tIn = document.createElement("input");
+    tIn.type = "time"; tIn.value = d.time; tIn.className = "t"; tIn.title = "시간 수정";
+    tIn.onchange = () => { if (tIn.value){ d.time = tIn.value; render(); } };
+    el.prepend(tIn);
+    const del = document.createElement("button");
+    del.textContent = "×"; del.title = "삭제";
+    del.onclick = () => { state.doses.splice(idx,1); render(); };
+    el.appendChild(del);
+    box.appendChild(el);
+  });
+}
+
+/* 4. 내 몸 정보 */
+function renderProfile(){
+  const p = state.profile, {Vd} = modelParams();
+  $("inH").value = p.height; $("inW").value = p.weight; $("inAge").value = p.age;
+  $("inWake").value = p.wake; $("inBed").value = p.bed;
+  document.querySelectorAll("#sexSeg button").forEach(b =>
+    b.classList.toggle("on", b.dataset.sex === p.sex));
+  $("profileSummary").textContent =
+    `${p.height}cm · ${p.weight}kg · ${p.sex==="m"?"남":"여"} · ${p.age}세 · 기상 ${p.wake}`;
+  document.querySelectorAll("#metaSeg button").forEach(b =>
+    b.classList.toggle("on", b.dataset.meta === (p.metabolism || "normal")));
+  const metaLabel = {fast:"빠름", normal:"보통", slow:"느림"}[p.metabolism || "normal"];
+  $("derivedLine").innerHTML =
+    `내 몸 기준 · 체수분량 <b>${Vd.toFixed(1)}L</b> · 카페인 반감기 <b>${halfLife(p)}시간</b> · 대사 <b>${metaLabel}</b>`;
+}
+
+/* 5. 상세 그래프 */
+let hoverT = null;
+let viewOffset = 0; // 그래프 창의 시작 시각(분). 좌우로 밀어 이동
+const panLimit = t => Math.max(-720, Math.min(1440, t));
+const fmtD = t => {
+  const d = Math.floor(t / 1440), m = ((Math.round(t) % 1440) + 1440) % 1440;
+  const s = String(Math.floor(m/60)).padStart(2,"0") + ":" + String(m%60).padStart(2,"0");
+  return d === 0 ? s : (d > 0 ? `+${d}일 ${s}` : `${d}일 ${s}`);
+};
+function drawGraph(){
+  const cv = $("graph"), tip = $("tip");
+  const dpr = window.devicePixelRatio || 1;
+  const W = cv.clientWidth, H = cv.clientHeight;
+  if (!W) return;
+  cv.width = W*dpr; cv.height = H*dpr;
+  const ctx = cv.getContext("2d"); ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,W,H);
+
+  const L=46, R=14, T=18, B=32, pw = W-L-R, ph = H-T-B;
+  const t0 = viewOffset, t1 = viewOffset + 1440;
+  let peak = THRESH*2;
+  for (let t=t0; t<=t1; t+=10) peak = Math.max(peak, totalConcAbs(t));
+  const yMax = Math.ceil(peak*1.15*2)/2;
+  const X = t => L + ((t-t0)/1440)*pw, Y = v => T + ph - (v/yMax)*ph;
+
+  const p = state.profile, wake = toMin(p.wake), bed = toMin(p.bed);
+  // 수면 구간: bed → wake (자정을 넘기는 경우 포함)
+  let sLen = (wake - bed + 1440) % 1440; if (sLen === 0) sLen = 1440;
+  ctx.fillStyle = "rgba(122,168,240,.10)";
+  for (let k=-1; k<=1; k++){
+    const s = bed + 1440*k, e = s + sLen;
+    const a = Math.max(s, t0), b = Math.min(e, t1);
+    if (b > a) ctx.fillRect(X(a), T, X(b)-X(a), ph);
+  }
+
+  ctx.strokeStyle = "#2c241b"; ctx.fillStyle = "#8a7c68";
+  ctx.font = "11px sans-serif"; ctx.lineWidth = 1;
+  const step = yMax <= 4 ? 1 : 2;
+  for (let v=0; v<=yMax+1e-9; v+=step){
+    ctx.beginPath(); ctx.moveTo(L,Y(v)); ctx.lineTo(W-R,Y(v)); ctx.stroke();
+    ctx.fillText(v.toFixed(0), 8, Y(v)+4);
+  }
+  for (let h=0; h<=24; h+=3){
+    const t = t0 + h*60, hh = ((Math.floor(t/60))%24+24)%24;
+    ctx.fillText(hh+"시", X(t)-10, H-10);
+  }
+  ctx.fillText("mg/L", 6, 14);
+
+  ctx.strokeStyle = "#f07a7a"; ctx.setLineDash([6,5]); ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(L,Y(THRESH)); ctx.lineTo(W-R,Y(THRESH)); ctx.stroke();
+  ctx.setLineDash([]);
+
+  const grad = ctx.createLinearGradient(0,T,0,T+ph);
+  grad.addColorStop(0,"rgba(242,169,59,.35)"); grad.addColorStop(1,"rgba(242,169,59,0)");
+  ctx.beginPath();
+  for (let t=t0; t<=t1; t+=5){ const x=X(t), y=Y(totalConcAbs(t)); t===t0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y); }
+  ctx.strokeStyle = "#f2a93b"; ctx.lineWidth = 2.5; ctx.stroke();
+  ctx.lineTo(X(t1), Y(0)); ctx.lineTo(X(t0), Y(0)); ctx.closePath();
+  ctx.fillStyle = grad; ctx.fill();
+
+  const vline = (t, color, dash, label, ly) => {
+    if (t < t0 || t > t1) return;
+    ctx.strokeStyle = color; ctx.setLineDash(dash); ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(X(t),T); ctx.lineTo(X(t),T+ph); ctx.stroke(); ctx.setLineDash([]);
+    if (label){ ctx.fillStyle = color; ctx.font = "bold 11px sans-serif";
+      ctx.fillText(label, Math.min(X(t)+5, W-46), ly || T+14); }
+  };
+  state.doses.forEach(d => {
+    const t = toMin(d.time), c = totalConcAbs(t);
+    if (t < t0 || t > t1) return;
+    ctx.fillStyle = "#f2a93b";
+    ctx.beginPath(); ctx.arc(X(t), Y(c), 5, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = "#14110d"; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = "#ab9d89"; ctx.font = "11px sans-serif";
+    ctx.fillText(d.time, X(t)-16, H-10);
+  });
+  vline(bestTime(), "#82c975", [5,4], "최적");
+  const cut = cutoffTime(); if (cut !== null) vline(cut, "#f2a93b", [5,4], "마감", T+30);
+  // 최적 취침 = 농도 곡선과 효과 종료 기준선(1.0)이 만나는 접점
+  const planBed = planBedtime();
+  if (planBed !== null && planBed > nowMin()){
+    vline(planBed, "#7aa8f0", [], "취침", T+46);
+    if (planBed >= t0 && planBed <= t1){
+      ctx.fillStyle = "#7aa8f0";
+      ctx.beginPath(); ctx.arc(X(planBed), Y(THRESH), 6, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = "#14110d"; ctx.lineWidth = 2; ctx.stroke();
+    }
+  }
+
+  const n = nowMin();
+  if (n >= t0 && n <= t1){
+    ctx.strokeStyle = "rgba(244,237,225,.55)"; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(X(n),T); ctx.lineTo(X(n),T+ph); ctx.stroke();
+    ctx.fillStyle = "rgba(244,237,225,.8)"; ctx.font = "11px sans-serif";
+    ctx.fillText("지금", Math.min(X(n)+4, W-40), T+ph-6);
+  }
+
+  if (hoverT !== null){
+    const t = Math.max(t0, Math.min(t1, hoverT)), c = totalConcAbs(t);
+    ctx.strokeStyle = "rgba(244,237,225,.35)";
+    ctx.beginPath(); ctx.moveTo(X(t),T); ctx.lineTo(X(t),T+ph); ctx.stroke();
+    ctx.fillStyle = "#f2a93b";
+    ctx.beginPath(); ctx.arc(X(t), Y(c), 5, 0, Math.PI*2); ctx.fill();
+    tip.style.display = "block";
+    tip.innerHTML = `<b>${fmtD(t)}</b> · ${c.toFixed(2)} mg/L`;
+    let tx = X(t) + 12; if (tx + 130 > cv.parentElement.clientWidth) tx = X(t) - 135;
+    tip.style.left = tx + "px"; tip.style.top = Math.max(0, Y(c) - 44) + "px";
+  } else tip.style.display = "none";
+}
+
+/* ---------- 입력 바인딩 ---------- */
+function bindInputs(){
+  const upd = key => e => {
+    let v = e.target.value;
+    if (key==="height"||key==="weight"||key==="age") v = parseFloat(v) || state.profile[key];
+    state.profile[key] = v; render();
+  };
+  $("inH").addEventListener("change", upd("height"));
+  $("inW").addEventListener("change", upd("weight"));
+  $("inAge").addEventListener("change", upd("age"));
+  $("inWake").addEventListener("change", upd("wake"));
+  $("inBed").addEventListener("change", upd("bed"));
+  document.querySelectorAll("#sexSeg button").forEach(b =>
+    b.addEventListener("click", () => { state.profile.sex = b.dataset.sex; render(); }));
+  document.querySelectorAll("#metaSeg button").forEach(b =>
+    b.addEventListener("click", () => { state.profile.metabolism = b.dataset.meta; render(); }));
+
+  $("cAdd").addEventListener("click", () => {
+    const time = $("cTime").value;
+    const mg = parseInt($("cMg").value, 10);
+    if (!time){ toast("마신 시간을 입력해 주세요"); return; }
+    if (!mg || mg < 1){ toast("카페인 함량(mg)을 입력해 주세요"); return; }
+    state.doses.push({time, mg, label:"직접 입력"});
+    $("cMg").value = "";
+    render();
+    toast(`${time} ${mg}mg 기록됐어요`);
+  });
+
+  const cv = $("graph");
+  const pwOf = () => cv.getBoundingClientRect().width - 46 - 14;
+  const posToT = clientX => {
+    const r = cv.getBoundingClientRect();
+    const t = viewOffset + (clientX - r.left - 46) / pwOf() * 1440;
+    return Math.max(viewOffset, Math.min(viewOffset + 1440, t));
+  };
+  const syncPanUI = () => { $("panToday").hidden = viewOffset === 0; };
+  const panBy = d => {
+    viewOffset = panLimit(viewOffset + d); hoverT = null;
+    drawGraph(); syncPanUI();
+  };
+  $("panL").addEventListener("click", () => panBy(-360));
+  $("panR").addEventListener("click", () => panBy(360));
+  $("panToday").addEventListener("click", () => panBy(-viewOffset));
+  let dragX = null, dragOff = 0, dragMoved = false;
+  cv.addEventListener("pointerdown", e => {
+    dragX = e.clientX; dragOff = viewOffset; dragMoved = false;
+    if (cv.setPointerCapture) try{ cv.setPointerCapture(e.pointerId); }catch(_){}
+  });
+  cv.addEventListener("pointermove", e => {
+    if (dragX === null){
+      if (e.pointerType === "mouse"){ hoverT = posToT(e.clientX); drawGraph(); }
+      return;
+    }
+    const dx = e.clientX - dragX;
+    if (Math.abs(dx) > 10) dragMoved = true;
+    if (dragMoved){
+      hoverT = null;
+      const pw = pwOf();
+      if (pw > 0) viewOffset = Math.round(panLimit(dragOff - dx / pw * 1440) / 5) * 5;
+      drawGraph(); syncPanUI();
+    }
+  });
+  cv.addEventListener("pointerup", e => {
+    if (dragX !== null && !dragMoved && e.pointerType !== "mouse"){
+      hoverT = posToT(e.clientX); drawGraph();
+    }
+    dragX = null;
+  });
+  cv.addEventListener("pointercancel", () => { dragX = null; });
+  cv.addEventListener("pointerleave", () => {
+    if (dragX === null){ hoverT = null; drawGraph(); }
+  });
+  window.addEventListener("resize", () => { renderTimeline(); drawGraph(); });
+}
+
+renderChips();
+bindInputs();
+render();
+</script>
+</body>
+</html>
